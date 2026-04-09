@@ -1,5 +1,6 @@
-import { TabInfo, DuplicateGroup, TabStats } from "../types";
+import { TabInfo, DuplicateGroup, TabStats, SearchResult } from "../types";
 import { extractDomain, isExcludedUrl, normalizeUrl } from "./domain-utils";
+import { getStaleTabs } from "./suggestion-utils";
 
 /**
  * Query all open tabs across all windows and map them to TabInfo objects.
@@ -138,10 +139,35 @@ export async function getTabStats(): Promise<TabStats> {
   const tabs = await getAllTabs();
   const duplicates = findDuplicates(tabs);
   const domains = new Set(tabs.map((t) => t.domain).filter(Boolean));
+  const staleTabs = getStaleTabs(tabs);
 
   return {
     totalTabs: tabs.length,
     duplicateCount: duplicates.reduce((sum, g) => sum + g.tabIdsToClose.length, 0),
     uniqueDomains: domains.size,
+    staleCount: staleTabs.length,
   };
+}
+
+/**
+ * Search open tabs by title or URL (case-insensitive substring match).
+ */
+export async function searchTabs(query: string): Promise<SearchResult[]> {
+  if (!query.trim()) return [];
+  const tabs = await getAllTabs();
+  const lowerQuery = query.toLowerCase();
+
+  return tabs
+    .filter(
+      (tab) =>
+        tab.title.toLowerCase().includes(lowerQuery) ||
+        tab.url.toLowerCase().includes(lowerQuery)
+    )
+    .map((tab) => ({
+      id: tab.id,
+      title: tab.title,
+      url: tab.url,
+      domain: tab.domain,
+      windowId: tab.windowId,
+    }));
 }

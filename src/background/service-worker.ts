@@ -4,8 +4,10 @@ import {
   closeDuplicates,
   groupTabsByDomain,
   getTabStats,
+  searchTabs,
 } from "../utils/tab-utils";
 import { isExcludedUrl } from "../utils/domain-utils";
+import { generateSuggestions, getStaleTabs } from "../utils/suggestion-utils";
 import { ExtensionMessage, OrganizeResult } from "../types";
 
 // --- Badge: show total tab count ---
@@ -137,6 +139,41 @@ chrome.runtime.onMessage.addListener(
         organizeAllTabs().then((data) =>
           sendResponse({ type: "ORGANIZE_RESULT", data })
         );
+        return true;
+
+      case "SEARCH_TABS":
+        searchTabs(message.query).then((results) =>
+          sendResponse({ type: "SEARCH_RESULT", data: results })
+        );
+        return true;
+
+      case "SWITCH_TO_TAB":
+        (async () => {
+          await chrome.tabs.update(message.tabId, { active: true });
+          await chrome.windows.update(message.windowId, { focused: true });
+          sendResponse({ type: "SWITCH_RESULT", data: { success: true } });
+        })();
+        return true;
+
+      case "GET_SUGGESTIONS":
+        (async () => {
+          const allTabs = await getAllTabs();
+          const suggestions = generateSuggestions(allTabs);
+          sendResponse({ type: "SUGGESTIONS_RESULT", data: suggestions });
+        })();
+        return true;
+
+      case "CLOSE_STALE_TABS":
+        (async () => {
+          const allTabs = await getAllTabs();
+          const staleTabs = getStaleTabs(allTabs);
+          const staleIds = staleTabs.map((t) => t.id);
+          if (staleIds.length > 0) {
+            await chrome.tabs.remove(staleIds);
+          }
+          await updateBadge();
+          sendResponse({ type: "STALE_RESULT", data: { closed: staleIds.length } });
+        })();
         return true;
     }
 

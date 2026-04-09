@@ -1,14 +1,19 @@
 import "../popup/popup.css";
-import { ExtensionMessage, TabStats, OrganizeResult } from "../types";
+import { ExtensionMessage, TabStats, OrganizeResult, SearchResult, Suggestion } from "../types";
 
 // --- DOM Elements ---
 
 const totalTabsEl = document.getElementById("totalTabs")!;
 const duplicateCountEl = document.getElementById("duplicateCount")!;
 const uniqueDomainsEl = document.getElementById("uniqueDomains")!;
+const staleCountEl = document.getElementById("staleCount")!;
+const staleItemEl = document.getElementById("staleItem")!;
 const btnCloseDuplicates = document.getElementById("btnCloseDuplicates") as HTMLButtonElement;
 const btnOrganize = document.getElementById("btnOrganize") as HTMLButtonElement;
 const statusMessageEl = document.getElementById("statusMessage")!;
+const searchInput = document.getElementById("searchInput") as HTMLInputElement;
+const searchResultsEl = document.getElementById("searchResults")!;
+const suggestionsEl = document.getElementById("suggestions")!;
 
 // --- Helpers ---
 
@@ -41,14 +46,115 @@ async function refreshStats(): Promise<void> {
     totalTabsEl.textContent = stats.totalTabs.toString();
     duplicateCountEl.textContent = stats.duplicateCount.toString();
     uniqueDomainsEl.textContent = stats.uniqueDomains.toString();
+    staleCountEl.textContent = stats.staleCount.toString();
 
-    // Highlight duplicates if any
     duplicateCountEl.parentElement!.classList.toggle(
       "has-duplicates",
       stats.duplicateCount > 0
     );
+    staleItemEl.classList.toggle("has-stale", stats.staleCount > 0);
   } catch (err) {
     console.error("Failed to get stats:", err);
+  }
+}
+
+// --- Tab Search ---
+
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+searchInput.addEventListener("input", () => {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(async () => {
+    const query = searchInput.value.trim();
+    if (!query) {
+      searchResultsEl.className = "search-results hidden";
+      searchResultsEl.textContent = "";
+      return;
+    }
+
+    const response = (await sendMessage({ type: "SEARCH_TABS", query })) as {
+      type: string;
+      data: SearchResult[];
+    };
+    const results = response.data;
+
+    searchResultsEl.textContent = "";
+    if (results.length === 0) {
+      searchResultsEl.className = "search-results hidden";
+      return;
+    }
+
+    for (const result of results) {
+      const item = document.createElement("div");
+      item.className = "search-result-item";
+
+      const title = document.createElement("span");
+      title.className = "search-result-title";
+      title.textContent = result.title || result.url;
+
+      const domain = document.createElement("span");
+      domain.className = "search-result-domain";
+      domain.textContent = result.domain;
+
+      item.appendChild(title);
+      item.appendChild(domain);
+      item.addEventListener("click", async () => {
+        await sendMessage({
+          type: "SWITCH_TO_TAB",
+          tabId: result.id,
+          windowId: result.windowId,
+        });
+      });
+      searchResultsEl.appendChild(item);
+    }
+    searchResultsEl.className = "search-results";
+  }, 200);
+});
+
+// --- Smart Suggestions ---
+
+async function refreshSuggestions(): Promise<void> {
+  try {
+    const response = (await sendMessage({ type: "GET_SUGGESTIONS" })) as {
+      type: string;
+      data: Suggestion[];
+    };
+    const suggestions = response.data;
+
+    suggestionsEl.textContent = "";
+    if (suggestions.length === 0) {
+      suggestionsEl.className = "suggestions hidden";
+      return;
+    }
+
+    for (const suggestion of suggestions) {
+      const item = document.createElement("div");
+      item.className = "suggestion-item";
+
+      const msg = document.createElement("span");
+      msg.className = "suggestion-message";
+      msg.textContent = suggestion.message;
+
+      item.appendChild(msg);
+
+      if (suggestion.id === "stale-tabs") {
+        const btn = document.createElement("button");
+        btn.className = "suggestion-action";
+        btn.textContent = suggestion.actionLabel;
+        btn.addEventListener("click", async () => {
+          await sendMessage({ type: "CLOSE_STALE_TABS" });
+          showStatus(`✓ Closed ${suggestion.tabIds.length} stale tab${suggestion.tabIds.length > 1 ? "s" : ""}`);
+          await refreshStats();
+          await refreshSuggestions();
+        });
+        item.appendChild(btn);
+      }
+
+      suggestionsEl.appendChild(item);
+    }
+    suggestionsEl.className = "suggestions";
+  } catch (err) {
+    console.error("Failed to get suggestions:", err);
   }
 }
 
@@ -68,6 +174,7 @@ btnCloseDuplicates.addEventListener("click", async () => {
         : "No duplicates found"
     );
     await refreshStats();
+    await refreshSuggestions();
   } catch (err) {
     showStatus("Error closing duplicates", "info");
     console.error(err);
@@ -93,6 +200,7 @@ btnOrganize.addEventListener("click", async () => {
       parts.length > 0 ? `✓ ${parts.join(", ")}` : "Tabs already organized"
     );
     await refreshStats();
+    await refreshSuggestions();
   } catch (err) {
     showStatus("Error organizing tabs", "info");
     console.error(err);
@@ -103,3 +211,4 @@ btnOrganize.addEventListener("click", async () => {
 
 // --- Init ---
 refreshStats();
+refreshSuggestions();
