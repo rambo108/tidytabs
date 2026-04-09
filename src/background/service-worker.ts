@@ -66,36 +66,42 @@ async function organizeAllTabs(): Promise<OrganizeResult> {
 
 // --- Event listeners ---
 
-// Track recently created tabs so we don't auto-close duplicates before the
-// user has a chance to navigate the new tab to a different URL.
-const recentlyCreatedTabs = new Map<number, number>();
-const GRACE_PERIOD_MS = 5000;
+// Track the last known URL per tab so auto-close only fires on actual
+// navigation to a new URL, not on tab create/duplicate/restore.
+const tabUrlMap = new Map<number, string>();
 
-// Auto-detect duplicates when a new tab is created
+// Seed URL map for existing tabs on service worker startup
+chrome.tabs.query({}).then((tabs) => {
+  for (const tab of tabs) {
+    if (tab.id !== undefined && tab.url) {
+      tabUrlMap.set(tab.id, tab.url);
+    }
+  }
+});
+
 chrome.tabs.onCreated.addListener(async (tab) => {
-  if (tab.id !== undefined) {
-    recentlyCreatedTabs.set(tab.id, Date.now());
+  // Record the initial URL but don't auto-close — user may be duplicating to navigate elsewhere
+  if (tab.id !== undefined && tab.url) {
+    tabUrlMap.set(tab.id, tab.url);
   }
   await updateBadge();
 });
 
-// Auto-detect duplicates when a tab finishes loading its URL
+// Only auto-close duplicates when a tab navigates to a different URL
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
-    const createdAt = recentlyCreatedTabs.get(tabId);
-    if (createdAt && Date.now() - createdAt < GRACE_PERIOD_MS) {
-      // Tab was just created/duplicated — skip auto-close to give user time to navigate
-      recentlyCreatedTabs.delete(tabId);
-      return;
-    }
-    recentlyCreatedTabs.delete(tabId);
+    const previousUrl = tabUrlMap.get(tabId);
+    tabUrlMap.set(tabId, tab.url);
+
+    // Skip if this is the first load (tab was just created/duplicated with this URL)
+    if (!previousUrl || previousUrl === tab.url) return;
+
     await handlePotentialDuplicate(tab.url);
   }
 });
 
-// Update badge when tabs are removed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  recentlyCreatedTabs.delete(tabId);
+  tabUrlMap.delete(tabId);
   await updateBadge();
 });
 
