@@ -89,9 +89,12 @@ chrome.tabs.onRemoved.addListener(async () => {
 chrome.runtime.onMessage.addListener(
   (
     message: ExtensionMessage,
-    _sender: chrome.runtime.MessageSender,
+    sender: chrome.runtime.MessageSender,
     sendResponse: (response: unknown) => void
   ) => {
+    // Only accept messages from this extension
+    if (sender.id !== chrome.runtime.id) return false;
+
     switch (message.type) {
       case "GET_STATS":
         getTabStats().then((data) =>
