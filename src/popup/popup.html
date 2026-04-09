@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TidyTabs</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🗂️ TidyTabs</h1>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-value" id="totalTabs">—</span>
+        <span class="stat-label">Open Tabs</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="duplicateCount">—</span>
+        <span class="stat-label">Duplicates</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="uniqueDomains">—</span>
+        <span class="stat-label">Domains</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btnCloseDuplicates" class="btn btn-secondary">
+        ✕ Close Duplicates
+      </button>
+      <button id="btnOrganize" class="btn btn-primary">
+        📁 Organize All
+      </button>
+    </div>
+
+    <div id="statusMessage" class="status hidden"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
