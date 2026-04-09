@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TidyTabs",
   "version": "1.0.0",
-  "description": "Tidy up your browser — automatically close duplicate tabs and organize by domain.",
+  "description": "Tidy up your browser — automatically close duplicate tabs and organize by domain. Works on Chrome and Edge.",
   "permissions": [
     "tabs",
     "tabGroups"

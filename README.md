@@ -1,18 +1,19 @@
 # 🗂️ TidyTabs
 
-**Drowning in browser tabs?** If you're the kind of person who ends up with 40+ Edge tabs open, the same page loaded three times, and no clue where anything is — this extension is for you.
+**Drowning in browser tabs?** If you're the kind of person who ends up with 40+ tabs open, the same page loaded three times, and no clue where anything is — this extension is for you.
 
-**TidyTabs** automatically detects and closes duplicate tabs and organizes your remaining tabs into clean, color-coded groups by domain. No more tab chaos — just click and breathe.
+**TidyTabs** automatically detects and closes duplicate tabs and organizes your remaining tabs into clean, color-coded groups by domain. Works on **Chrome** and **Edge**. No more tab chaos — just click and breathe.
 
 ---
 
 ## ✨ Features
 
 - **🔁 Auto-close duplicates** — Open a URL that's already in another tab? The stale duplicate is automatically closed. You always keep the most recently accessed one.
-- **📁 Group tabs by domain** — One click to organize all your tabs into native Edge tab groups, color-coded by site (e.g., all GitHub tabs grouped together, all Stack Overflow tabs together).
+- **📁 Group tabs by domain** — One click to organize all your tabs into native tab groups, color-coded by site (e.g., all GitHub tabs grouped together, all Stack Overflow tabs together).
 - **📊 Live tab stats** — The popup shows your total open tabs, how many duplicates exist, and how many unique domains you're on — at a glance.
 - **🔢 Tab counter badge** — The extension icon shows your total open tab count so you always know where you stand.
 - **🛡️ Smart & safe** — Pinned tabs are never touched. Internal browser pages (`edge://`, `chrome://`) are always excluded.
+- **🌐 Cross-browser** — Works on both Google Chrome and Microsoft Edge.
 
 ---
 
@@ -23,9 +24,17 @@
 1. Go to the [**Releases**](../../releases/latest) page
 2. Download **tidytabs-vX.X.X.zip**
 3. Unzip it to a folder on your computer
-4. Open Microsoft Edge → navigate to `edge://extensions/`
-5. Enable **Developer mode** (toggle in the bottom-left corner)
-6. Click **Load unpacked** → select the unzipped folder
+4. Load the extension in your browser:
+
+   **Chrome:**
+   - Navigate to `chrome://extensions/`
+   - Enable **Developer mode** (toggle in the top-right)
+   - Click **Load unpacked** → select the unzipped folder
+
+   **Edge:**
+   - Navigate to `edge://extensions/`
+   - Enable **Developer mode** (toggle in the bottom-left)
+   - Click **Load unpacked** → select the unzipped folder
 
 That's it! You should see the 🗂️ TidyTabs icon in your toolbar.
 
@@ -33,7 +42,7 @@ That's it! You should see the 🗂️ TidyTabs icon in your toolbar.
 
 If you want to build it yourself or contribute:
 
-**Prerequisites:** [Node.js](https://nodejs.org/) v16+ and Microsoft Edge
+**Prerequisites:** [Node.js](https://nodejs.org/) v16+ and Chrome or Edge
 
 ```bash
 git clone https://github.com/<your-username>/tidytabs.git
@@ -42,9 +51,9 @@ npm install
 npm run build
 ```
 
-Then load the `dist/` folder in Edge using steps 4–6 above.
+Then load the `dist/` folder using the browser-specific steps above.
 
-> **💡 Tip:** After pulling new changes, run `npm run build` again and click **Reload** (🔄) on the extension card in `edge://extensions/`.
+> **💡 Tip:** After pulling new changes, run `npm run build` again and click **Reload** (🔄) on the extension card in your browser's extensions page.
 
 ---
 
@@ -73,8 +82,8 @@ npm run build  # Production build
 |---------|----------|
 | Duplicate detection | Exact normalized URL match |
 | Which tab to keep | Most recently accessed |
-| Tab grouping | Native Edge `tabGroups` API, color-coded per domain |
-| Auto-mode trigger | `tabs.onUpdated` fires when a tab's status = `"complete"` |
+| Tab grouping | Native `tabGroups` API, color-coded per domain |
+| Auto-mode trigger | `tabs.onUpdated` fires when a tab navigates to a new URL |
 
 ---
 

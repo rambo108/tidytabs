@@ -50,8 +50,9 @@ jobs:
           body: |
             ## 🗂️ TidyTabs ${{ github.ref_name }}
 
-            ### Quick Install
+            ### Quick Install (Chrome or Edge)
             1. Download **tidytabs-${{ github.ref_name }}.zip** below
             2. Unzip to a folder
-            3. Open `edge://extensions/` → enable **Developer mode**
+            3. **Chrome:** `chrome://extensions/` → enable **Developer mode** (top-right)
+               **Edge:** `edge://extensions/` → enable **Developer mode** (bottom-left)
             4. Click **Load unpacked** → select the unzipped folder
