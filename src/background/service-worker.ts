@@ -66,21 +66,36 @@ async function organizeAllTabs(): Promise<OrganizeResult> {
 
 // --- Event listeners ---
 
+// Track recently created tabs so we don't auto-close duplicates before the
+// user has a chance to navigate the new tab to a different URL.
+const recentlyCreatedTabs = new Map<number, number>();
+const GRACE_PERIOD_MS = 5000;
+
 // Auto-detect duplicates when a new tab is created
 chrome.tabs.onCreated.addListener(async (tab) => {
-  // New tabs may not have a URL yet — wait for onUpdated
+  if (tab.id !== undefined) {
+    recentlyCreatedTabs.set(tab.id, Date.now());
+  }
   await updateBadge();
 });
 
 // Auto-detect duplicates when a tab finishes loading its URL
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
+    const createdAt = recentlyCreatedTabs.get(tabId);
+    if (createdAt && Date.now() - createdAt < GRACE_PERIOD_MS) {
+      // Tab was just created/duplicated — skip auto-close to give user time to navigate
+      recentlyCreatedTabs.delete(tabId);
+      return;
+    }
+    recentlyCreatedTabs.delete(tabId);
     await handlePotentialDuplicate(tab.url);
   }
 });
 
 // Update badge when tabs are removed
-chrome.tabs.onRemoved.addListener(async () => {
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  recentlyCreatedTabs.delete(tabId);
   await updateBadge();
 });
 
