@@ -14,7 +14,7 @@
 - **🔢 Tab counter badge** — The extension icon shows your total open tab count so you always know where you stand.
 - **🛡️ Smart & safe** — Pinned tabs are never touched. Internal browser pages (`edge://`, `chrome://`) are always excluded.
 - **🌐 Cross-browser** — Works on both Google Chrome and Microsoft Edge.
-<img width="1713" height="956" alt="image" src="https://github.com/user-attachments/assets/22c8ce6b-e543-467b-a2e8-03302818bec7" />
+
 
 ---
 
