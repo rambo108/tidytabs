@@ -15,6 +15,7 @@
 - **🛡️ Smart & safe** — Pinned tabs are never touched. Internal browser pages (`edge://`, `chrome://`) are always excluded.
 - **🌐 Cross-browser** — Works on both Google Chrome and Microsoft Edge.
 
+<img width="1702" height="951" alt="image" src="https://github.com/user-attachments/assets/dcaf44db-44c7-4e9a-97ba-31b526661831" />
 
 ---
 
