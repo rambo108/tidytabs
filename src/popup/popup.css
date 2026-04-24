@@ -256,3 +256,40 @@ h1 {
 .suggestion-action:hover {
   filter: brightness(1.15);
 }
+
+/* --- Search Section Headers --- */
+
+.search-section-header {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9e9e9e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+
+/* --- Bookmark Result Styles --- */
+
+.bookmark-item {
+  flex-direction: row;
+  align-items: center;
+}
+
+.bookmark-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.bookmark-path {
+  font-size: 10px;
+  color: #757575;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}

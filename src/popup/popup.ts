@@ -1,5 +1,5 @@
 import "../popup/popup.css";
-import { ExtensionMessage, TabStats, OrganizeResult, SearchResult, Suggestion } from "../types";
+import { ExtensionMessage, TabStats, OrganizeResult, SearchResult, Suggestion, BookmarkResult } from "../types";
 
 // --- DOM Elements ---
 
@@ -72,41 +72,100 @@ searchInput.addEventListener("input", () => {
       return;
     }
 
-    const response = (await sendMessage({ type: "SEARCH_TABS", query })) as {
-      type: string;
-      data: SearchResult[];
-    };
-    const results = response.data;
+    // Search tabs and bookmarks in parallel
+    const [tabResponse, bookmarkResponse] = await Promise.all([
+      sendMessage({ type: "SEARCH_TABS", query }) as Promise<{
+        type: string;
+        data: SearchResult[];
+      }>,
+      sendMessage({ type: "SEARCH_BOOKMARKS", query }) as Promise<{
+        type: string;
+        data: BookmarkResult[];
+      }>,
+    ]);
+
+    const tabResults = tabResponse.data;
+    const bookmarkResults = bookmarkResponse.data;
 
     searchResultsEl.textContent = "";
-    if (results.length === 0) {
+
+    if (tabResults.length === 0 && bookmarkResults.length === 0) {
       searchResultsEl.className = "search-results hidden";
       return;
     }
 
-    for (const result of results) {
-      const item = document.createElement("div");
-      item.className = "search-result-item";
+    // Render tab results
+    if (tabResults.length > 0) {
+      const header = document.createElement("div");
+      header.className = "search-section-header";
+      header.textContent = "Open Tabs";
+      searchResultsEl.appendChild(header);
 
-      const title = document.createElement("span");
-      title.className = "search-result-title";
-      title.textContent = result.title || result.url;
+      for (const result of tabResults) {
+        const item = document.createElement("div");
+        item.className = "search-result-item";
 
-      const domain = document.createElement("span");
-      domain.className = "search-result-domain";
-      domain.textContent = result.domain;
+        const title = document.createElement("span");
+        title.className = "search-result-title";
+        title.textContent = result.title || result.url;
 
-      item.appendChild(title);
-      item.appendChild(domain);
-      item.addEventListener("click", async () => {
-        await sendMessage({
-          type: "SWITCH_TO_TAB",
-          tabId: result.id,
-          windowId: result.windowId,
+        const domain = document.createElement("span");
+        domain.className = "search-result-domain";
+        domain.textContent = result.domain;
+
+        item.appendChild(title);
+        item.appendChild(domain);
+        item.addEventListener("click", async () => {
+          await sendMessage({
+            type: "SWITCH_TO_TAB",
+            tabId: result.id,
+            windowId: result.windowId,
+          });
         });
-      });
-      searchResultsEl.appendChild(item);
+        searchResultsEl.appendChild(item);
+      }
     }
+
+    // Render bookmark results
+    if (bookmarkResults.length > 0) {
+      const header = document.createElement("div");
+      header.className = "search-section-header";
+      header.textContent = "Bookmarks";
+      searchResultsEl.appendChild(header);
+
+      for (const bm of bookmarkResults) {
+        const item = document.createElement("div");
+        item.className = "search-result-item bookmark-item";
+
+        const info = document.createElement("div");
+        info.className = "bookmark-info";
+
+        const title = document.createElement("span");
+        title.className = "search-result-title";
+        title.textContent = bm.title || bm.url;
+
+        const path = document.createElement("span");
+        path.className = "bookmark-path";
+        path.textContent = bm.folderPath;
+
+        info.appendChild(title);
+        if (bm.folderPath) {
+          info.appendChild(path);
+        }
+
+        const domain = document.createElement("span");
+        domain.className = "search-result-domain";
+        domain.textContent = bm.domain;
+
+        item.appendChild(info);
+        item.appendChild(domain);
+        item.addEventListener("click", async () => {
+          await chrome.tabs.create({ url: bm.url });
+        });
+        searchResultsEl.appendChild(item);
+      }
+    }
+
     searchResultsEl.className = "search-results";
   }, 200);
 });

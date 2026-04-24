@@ -5,7 +5,8 @@
   "description": "Tidy up your browser — automatically close duplicate tabs and organize by domain. Works on Chrome and Edge.",
   "permissions": [
     "tabs",
-    "tabGroups"
+    "tabGroups",
+    "bookmarks"
   ],
   "background": {
     "service_worker": "background/service-worker.js"

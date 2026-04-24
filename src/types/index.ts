@@ -35,6 +35,14 @@ export interface TabStats {
   staleCount: number;
 }
 
+/** Result of a fuzzy match operation */
+export interface FuzzyMatchResult {
+  matched: boolean;
+  score: number;
+  /** Character indices in the source text that matched the query */
+  matchedIndices: number[];
+}
+
 /** A search result for the tab search feature */
 export interface SearchResult {
   id: number;
@@ -52,6 +60,16 @@ export interface Suggestion {
   tabIds: number[];
 }
 
+/** A bookmark search result */
+export interface BookmarkResult {
+  id: string;
+  title: string;
+  url: string;
+  domain: string;
+  /** Full folder path, e.g. "Bookmarks Bar › Dev › Tools" */
+  folderPath: string;
+}
+
 // --- Message types for popup ↔ service-worker communication ---
 
 export type MessageType =
@@ -62,6 +80,7 @@ export type MessageType =
   | "SWITCH_TO_TAB"
   | "GET_SUGGESTIONS"
   | "CLOSE_STALE_TABS"
+  | "SEARCH_BOOKMARKS"
   | "STATS_RESULT"
   | "ORGANIZE_RESULT";
 
@@ -96,6 +115,11 @@ export interface CloseStaleTabsMessage {
   type: "CLOSE_STALE_TABS";
 }
 
+export interface SearchBookmarksMessage {
+  type: "SEARCH_BOOKMARKS";
+  query: string;
+}
+
 export interface StatsResultMessage {
   type: "STATS_RESULT";
   data: TabStats;
@@ -114,5 +138,6 @@ export type ExtensionMessage =
   | SwitchToTabMessage
   | GetSuggestionsMessage
   | CloseStaleTabsMessage
+  | SearchBookmarksMessage
   | StatsResultMessage
   | OrganizeResultMessage;

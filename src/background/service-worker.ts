@@ -8,6 +8,7 @@ import {
 } from "../utils/tab-utils";
 import { isExcludedUrl } from "../utils/domain-utils";
 import { generateSuggestions, getStaleTabs } from "../utils/suggestion-utils";
+import { searchBookmarks } from "../utils/bookmark-utils";
 import { ExtensionMessage, OrganizeResult } from "../types";
 
 // --- Badge: show total tab count ---
@@ -174,6 +175,12 @@ chrome.runtime.onMessage.addListener(
           await updateBadge();
           sendResponse({ type: "STALE_RESULT", data: { closed: staleIds.length } });
         })();
+        return true;
+
+      case "SEARCH_BOOKMARKS":
+        searchBookmarks(message.query).then((results) =>
+          sendResponse({ type: "BOOKMARK_SEARCH_RESULT", data: results })
+        );
         return true;
     }
 

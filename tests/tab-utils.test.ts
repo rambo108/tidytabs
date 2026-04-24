@@ -1,5 +1,5 @@
 import { TabInfo, DuplicateGroup } from "../src/types";
-import { findDuplicates } from "../src/utils/tab-utils";
+import { findDuplicates, fuzzyMatch } from "../src/utils/tab-utils";
 
 // Helper to create a mock TabInfo
 function mockTab(overrides: Partial<TabInfo> = {}): TabInfo {
@@ -14,6 +14,69 @@ function mockTab(overrides: Partial<TabInfo> = {}): TabInfo {
     ...overrides,
   };
 }
+
+describe("fuzzyMatch", () => {
+  it("matches exact substring and gives high score", () => {
+    const result = fuzzyMatch("GitHub - My Repository", "GitHub");
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(200);
+  });
+
+  it("matches case-insensitively", () => {
+    const result = fuzzyMatch("GitHub Repository", "github");
+    expect(result.matched).toBe(true);
+  });
+
+  it("matches fuzzy partial characters in order", () => {
+    const result = fuzzyMatch("GitHub", "gith");
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThan(0);
+  });
+
+  it("matches scattered characters in order", () => {
+    const result = fuzzyMatch("TidyTabs Extension", "ttex");
+    expect(result.matched).toBe(true);
+  });
+
+  it("does not match when characters are out of order", () => {
+    const result = fuzzyMatch("GitHub", "btiG");
+    expect(result.matched).toBe(false);
+  });
+
+  it("does not match when query has characters not in text", () => {
+    const result = fuzzyMatch("GitHub", "githubz");
+    expect(result.matched).toBe(false);
+  });
+
+  it("returns matched:true with score 0 for empty query", () => {
+    const result = fuzzyMatch("anything", "");
+    expect(result.matched).toBe(true);
+    expect(result.score).toBe(0);
+  });
+
+  it("returns matched:false for empty text with non-empty query", () => {
+    const result = fuzzyMatch("", "test");
+    expect(result.matched).toBe(false);
+  });
+
+  it("scores exact substring higher than scattered match", () => {
+    const exact = fuzzyMatch("GitHub Repository", "Repo");
+    const scattered = fuzzyMatch("Really epic python opus", "Repo");
+    expect(exact.score).toBeGreaterThan(scattered.score);
+  });
+
+  it("gives word-boundary bonus", () => {
+    const boundary = fuzzyMatch("my-repo test", "repo");
+    const mid = fuzzyMatch("myrepo test", "repo");
+    expect(boundary.score).toBeGreaterThanOrEqual(mid.score);
+  });
+
+  it("tracks matched indices correctly for exact substring", () => {
+    const result = fuzzyMatch("Hello World", "World");
+    expect(result.matched).toBe(true);
+    expect(result.matchedIndices).toEqual([6, 7, 8, 9, 10]);
+  });
+});
 
 describe("findDuplicates", () => {
   it("returns empty array when no duplicates exist", () => {

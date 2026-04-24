@@ -1,6 +1,64 @@
-import { TabInfo, DuplicateGroup, TabStats, SearchResult } from "../types";
+import { TabInfo, DuplicateGroup, TabStats, SearchResult, FuzzyMatchResult } from "../types";
 import { extractDomain, isExcludedUrl, normalizeUrl } from "./domain-utils";
 import { getStaleTabs } from "./suggestion-utils";
+
+/**
+ * Fuzzy match a query against a text string.
+ * Characters in the query must appear in order in the text.
+ * Scoring rewards consecutive matches, word-boundary matches, and early matches.
+ */
+export function fuzzyMatch(text: string, query: string): FuzzyMatchResult {
+  if (!query) return { matched: true, score: 0, matchedIndices: [] };
+  if (!text) return { matched: false, score: 0, matchedIndices: [] };
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+
+  // Quick exact-contains check (highest score path)
+  const exactIndex = lowerText.indexOf(lowerQuery);
+  if (exactIndex !== -1) {
+    const indices = Array.from({ length: lowerQuery.length }, (_, i) => exactIndex + i);
+    // Bonus for starting at 0 or at a word boundary
+    const boundaryBonus = exactIndex === 0 ? 50 : /\W/.test(text[exactIndex - 1]) ? 30 : 0;
+    return { matched: true, score: 200 + boundaryBonus, matchedIndices: indices };
+  }
+
+  // Sequential character matching
+  let qi = 0;
+  let score = 0;
+  let prevMatchIndex = -2;
+  const matchedIndices: number[] = [];
+
+  for (let ti = 0; ti < lowerText.length && qi < lowerQuery.length; ti++) {
+    if (lowerText[ti] === lowerQuery[qi]) {
+      matchedIndices.push(ti);
+
+      // Consecutive match bonus
+      if (ti === prevMatchIndex + 1) {
+        score += 15;
+      } else {
+        score += 5;
+      }
+
+      // Word boundary bonus (start of string or preceded by non-alphanumeric)
+      if (ti === 0 || /\W/.test(text[ti - 1])) {
+        score += 10;
+      }
+
+      // Early match bonus (diminishing)
+      score += Math.max(0, 10 - ti);
+
+      prevMatchIndex = ti;
+      qi++;
+    }
+  }
+
+  if (qi < lowerQuery.length) {
+    return { matched: false, score: 0, matchedIndices: [] };
+  }
+
+  return { matched: true, score, matchedIndices };
+}
 
 /**
  * Query all open tabs across all windows and map them to TabInfo objects.
@@ -150,20 +208,36 @@ export async function getTabStats(): Promise<TabStats> {
 }
 
 /**
- * Search open tabs by title or URL (case-insensitive substring match).
+ * Search open tabs by title or URL using fuzzy matching.
+ * Results are ranked by match quality, then by recency.
  */
 export async function searchTabs(query: string): Promise<SearchResult[]> {
   if (!query.trim()) return [];
   const tabs = await getAllTabs();
-  const lowerQuery = query.toLowerCase();
+  const trimmed = query.trim();
 
-  return tabs
-    .filter(
-      (tab) =>
-        tab.title.toLowerCase().includes(lowerQuery) ||
-        tab.url.toLowerCase().includes(lowerQuery)
-    )
-    .map((tab) => ({
+  const scored: { tab: TabInfo; score: number }[] = [];
+
+  for (const tab of tabs) {
+    const titleMatch = fuzzyMatch(tab.title, trimmed);
+    const urlMatch = fuzzyMatch(tab.url, trimmed);
+
+    if (!titleMatch.matched && !urlMatch.matched) continue;
+
+    // Title matches are worth more than URL matches
+    const titleScore = titleMatch.matched ? titleMatch.score * 2 : 0;
+    const urlScore = urlMatch.matched ? urlMatch.score : 0;
+    const bestScore = Math.max(titleScore, urlScore);
+
+    // Small recency bonus (normalized to 0-10 range)
+    const recencyBonus = Math.min(10, tab.lastAccessed / (Date.now() / 10));
+
+    scored.push({ tab, score: bestScore + recencyBonus });
+  }
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .map(({ tab }) => ({
       id: tab.id,
       title: tab.title,
       url: tab.url,
