@@ -232,7 +232,28 @@ chrome.runtime.onMessage.addListener(
  * Web Store, view-source:, etc.). Requires the "scripting" permission
  * and host_permissions: <all_urls>.
  */
+// Track which groups we expanded for hover-marking so we can re-collapse on unmark.
+const expandedByMark = new Map<number, number>(); // tabId -> groupId we expanded
+
 async function markTab(tabId: number, marker: string): Promise<void> {
+  // Expand the containing group if collapsed, so the marker is visible in the
+  // tab strip (collapsed groups hide individual tab titles).
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (
+      tab.groupId !== undefined &&
+      tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE
+    ) {
+      const group = await chrome.tabGroups.get(tab.groupId);
+      if (group.collapsed) {
+        await chrome.tabGroups.update(tab.groupId, { collapsed: false });
+        expandedByMark.set(tabId, tab.groupId);
+      }
+    }
+  } catch (err) {
+    console.warn("[TidyTabs] markTab group-expand failed", tabId, err);
+  }
+
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -245,8 +266,9 @@ async function markTab(tabId: number, marker: string): Promise<void> {
       },
       args: [marker],
     });
-  } catch {
-    // Tab is not scriptable (internal page, no host permission, closed) — ignore
+  } catch (err) {
+    // Tab is not scriptable (internal page, no host permission, closed)
+    console.warn("[TidyTabs] markTab failed for tab", tabId, err);
   }
 }
 
@@ -262,8 +284,24 @@ async function unmarkTab(tabId: number): Promise<void> {
         }
       },
     });
-  } catch {
-    // Ignore — tab may be gone or non-scriptable
+  } catch (err) {
+    console.warn("[TidyTabs] unmarkTab failed for tab", tabId, err);
+  }
+
+  // Restore the group's collapsed state if we expanded it.
+  const groupId = expandedByMark.get(tabId);
+  if (groupId !== undefined) {
+    expandedByMark.delete(tabId);
+    try {
+      // Don't re-collapse if the marked tab is now the active tab — collapsing
+      // an active tab's group would hide it.
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab.active) {
+        await chrome.tabGroups.update(groupId, { collapsed: true });
+      }
+    } catch {
+      // Group or tab gone — nothing to restore
+    }
   }
 }
 
