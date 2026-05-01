@@ -97,44 +97,11 @@ async function refreshStats(): Promise<void> {
 // --- Tab Search ---
 
 const TAB_MARKER = "👉 ";
-const MARK_TIMEOUT_MS = 5000;
-
-let markedTabId: number | null = null;
-let markTimeout: ReturnType<typeof setTimeout> | null = null;
-
-function clearMark(): void {
-  if (markTimeout) {
-    clearTimeout(markTimeout);
-    markTimeout = null;
-  }
-  if (markedTabId !== null) {
-    const id = markedTabId;
-    markedTabId = null;
-    sendMessage({ type: "UNMARK_TAB", tabId: id }).catch(() => {});
-  }
-}
-
-function markTab(tabId: number): void {
-  if (markedTabId === tabId) return;
-  // Unmark whatever was marked before
-  if (markedTabId !== null && markedTabId !== tabId) {
-    const prev = markedTabId;
-    sendMessage({ type: "UNMARK_TAB", tabId: prev }).catch(() => {});
-  }
-  if (markTimeout) clearTimeout(markTimeout);
-  markedTabId = tabId;
-  sendMessage({ type: "MARK_TAB", tabId, marker: TAB_MARKER }).catch(() => {});
-  markTimeout = setTimeout(() => {
-    if (markedTabId === tabId) clearMark();
-  }, MARK_TIMEOUT_MS);
-}
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 searchInput.addEventListener("input", () => {
   if (searchDebounce) clearTimeout(searchDebounce);
-  // New query — drop any active marker so titles don't get stuck modified
-  clearMark();
   searchDebounce = setTimeout(async () => {
     const query = searchInput.value.trim();
     if (!query) {
@@ -200,12 +167,7 @@ searchInput.addEventListener("input", () => {
 
         item.appendChild(title);
         item.appendChild(domain);
-        item.addEventListener("mouseenter", () => markTab(result.id));
-        item.addEventListener("mouseleave", () => {
-          if (markedTabId === result.id) clearMark();
-        });
         item.addEventListener("click", async () => {
-          clearMark();
           await sendMessage({
             type: "SWITCH_TO_TAB",
             tabId: result.id,
@@ -385,14 +347,5 @@ btnFindCurrent.addEventListener("click", async () => {
   } catch (err) {
     console.error(err);
     showStatus("Couldn't mark current tab", "info");
-  }
-});
-
-// Defensive: when the popup closes (user clicks away), make sure no tab is
-// left with a marker prefix. The popup window emits 'unload' on close.
-window.addEventListener("unload", () => {
-  if (markedTabId !== null) {
-    // Use sendMessage without awaiting — popup is going away
-    chrome.runtime.sendMessage({ type: "UNMARK_TAB", tabId: markedTabId });
   }
 });

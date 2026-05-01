@@ -13,7 +13,6 @@
 - **🔍 Fuzzy tab & bookmark search** — The popup auto-focuses a search box that fuzzy-matches across open tabs and bookmarks. Matched characters are highlighted inline so you can spot the right result instantly.
 - **🟦 Active tab highlight** — Your currently active tab is called out in the search results with a contrast background and an `● Active` badge.
 - **📍 Find my current tab** — Lost your active tab in a sea of tabs? One click expands its tab group, scrolls the browser's tab strip to it, and prefixes the title with `👉` for 5 seconds so it's impossible to miss.
-- **👉 Hover-to-locate** — Hover any search result to temporarily mark that tab's title with `👉` in the tab strip, so you can see where it lives before switching.
 - **📂 Auto-expand collapsed groups** — Switching to a tab inside a collapsed group automatically expands the group so the tab is visible.
 - **📊 Live tab stats** — The popup shows your total open tabs, how many duplicates exist, and how many unique domains you're on — at a glance.
 - **🔢 Tab counter badge** — The extension icon shows your total open tab count so you always know where you stand.
@@ -70,7 +69,6 @@ Then load the `dist/` folder using the browser-specific steps above.
 |--------|-----|
 | **Search tabs & bookmarks** | Click the extension icon — the search box is already focused. Just start typing. Click any result to jump to it. |
 | **Find your current tab** | Click **📍 Find my current tab** — the browser's tab strip scrolls to the active tab, expands its group, and adds a `👉` marker for 5 seconds |
-| **Locate a tab before switching** | Hover any search result — its tab title in the tab strip is prefixed with `👉` until you move away |
 | **Close duplicates** | Click the extension icon → **✕ Close Duplicates** |
 | **Organize all tabs** | Click the extension icon → **📁 Organize All** (closes duplicates + groups by domain) |
 | **Check tab stats** | Click the extension icon — stats are shown instantly |
