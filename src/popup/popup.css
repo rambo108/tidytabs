@@ -202,6 +202,43 @@ h1 {
   margin-left: 8px;
 }
 
+.search-result-title mark.match {
+  background: transparent;
+  color: #4285f4;
+  font-weight: 700;
+  padding: 0;
+}
+
+/* --- Active tab highlight --- */
+
+.search-result-item.is-active-tab {
+  background: #1f3a5f;
+  border-left: 3px solid #4fc3f7;
+}
+
+.search-result-item.is-active-tab:hover {
+  background: #264a78;
+}
+
+.search-result-item.is-active-tab .search-result-title {
+  color: #ffffff;
+  max-width: 170px;
+}
+
+.active-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #1e1e1e;
+  background: #4fc3f7;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+
 /* --- Stale stat highlight --- */
 
 .stat-item.has-stale {

@@ -6,7 +6,11 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "bookmarks"
+    "bookmarks",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background/service-worker.js"

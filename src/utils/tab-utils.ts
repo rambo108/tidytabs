@@ -75,6 +75,8 @@ export async function getAllTabs(): Promise<TabInfo[]> {
       lastAccessed: tab.lastAccessed ?? 0,
       windowId: tab.windowId,
       pinned: tab.pinned ?? false,
+      active: tab.active ?? false,
+      groupId: tab.groupId ?? -1,
     }));
 }
 
@@ -216,7 +218,12 @@ export async function searchTabs(query: string): Promise<SearchResult[]> {
   const tabs = await getAllTabs();
   const trimmed = query.trim();
 
-  const scored: { tab: TabInfo; score: number }[] = [];
+  const scored: {
+    tab: TabInfo;
+    score: number;
+    titleMatchIndices: number[];
+    urlMatchIndices: number[];
+  }[] = [];
 
   for (const tab of tabs) {
     const titleMatch = fuzzyMatch(tab.title, trimmed);
@@ -232,16 +239,25 @@ export async function searchTabs(query: string): Promise<SearchResult[]> {
     // Small recency bonus (normalized to 0-10 range)
     const recencyBonus = Math.min(10, tab.lastAccessed / (Date.now() / 10));
 
-    scored.push({ tab, score: bestScore + recencyBonus });
+    scored.push({
+      tab,
+      score: bestScore + recencyBonus,
+      titleMatchIndices: titleMatch.matched ? titleMatch.matchedIndices : [],
+      urlMatchIndices: urlMatch.matched ? urlMatch.matchedIndices : [],
+    });
   }
 
   return scored
     .sort((a, b) => b.score - a.score)
-    .map(({ tab }) => ({
+    .map(({ tab, titleMatchIndices, urlMatchIndices }) => ({
       id: tab.id,
       title: tab.title,
       url: tab.url,
       domain: tab.domain,
       windowId: tab.windowId,
+      groupId: tab.groupId,
+      active: tab.active,
+      titleMatchIndices,
+      urlMatchIndices,
     }));
 }

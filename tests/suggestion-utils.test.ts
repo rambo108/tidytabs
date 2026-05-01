@@ -14,6 +14,8 @@ function makeTab(overrides: Partial<TabInfo> = {}): TabInfo {
     lastAccessed: Date.now(),
     windowId: 1,
     pinned: false,
+    active: false,
+    groupId: -1,
     ...overrides,
   };
 }

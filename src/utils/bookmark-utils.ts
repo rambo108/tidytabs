@@ -43,7 +43,12 @@ export async function searchBookmarks(query: string): Promise<BookmarkResult[]> 
   const bookmarks = rawResults.filter((node) => node.url);
 
   // Apply fuzzy matching for scoring and re-ranking
-  const scored: { node: chrome.bookmarks.BookmarkTreeNode; score: number }[] = [];
+  const scored: {
+    node: chrome.bookmarks.BookmarkTreeNode;
+    score: number;
+    titleMatchIndices: number[];
+    urlMatchIndices: number[];
+  }[] = [];
 
   for (const node of bookmarks) {
     const titleMatch = fuzzyMatch(node.title || "", trimmed);
@@ -53,7 +58,12 @@ export async function searchBookmarks(query: string): Promise<BookmarkResult[]> 
 
     const titleScore = titleMatch.matched ? titleMatch.score * 2 : 0;
     const urlScore = urlMatch.matched ? urlMatch.score : 0;
-    scored.push({ node, score: Math.max(titleScore, urlScore) });
+    scored.push({
+      node,
+      score: Math.max(titleScore, urlScore),
+      titleMatchIndices: titleMatch.matched ? titleMatch.matchedIndices : [],
+      urlMatchIndices: urlMatch.matched ? urlMatch.matchedIndices : [],
+    });
   }
 
   // Sort by score descending, limit to top 10
@@ -62,12 +72,14 @@ export async function searchBookmarks(query: string): Promise<BookmarkResult[]> 
 
   // Resolve folder paths in parallel
   const results = await Promise.all(
-    top.map(async ({ node }) => ({
+    top.map(async ({ node, titleMatchIndices, urlMatchIndices }) => ({
       id: node.id,
       title: node.title || node.url || "",
       url: node.url!,
       domain: extractDomain(node.url!),
       folderPath: await resolveFolderPath(node.parentId ?? ""),
+      titleMatchIndices,
+      urlMatchIndices,
     }))
   );
 

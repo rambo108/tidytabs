@@ -10,12 +10,48 @@ const staleCountEl = document.getElementById("staleCount")!;
 const staleItemEl = document.getElementById("staleItem")!;
 const btnCloseDuplicates = document.getElementById("btnCloseDuplicates") as HTMLButtonElement;
 const btnOrganize = document.getElementById("btnOrganize") as HTMLButtonElement;
+const btnFindCurrent = document.getElementById("btnFindCurrent") as HTMLButtonElement;
 const statusMessageEl = document.getElementById("statusMessage")!;
 const searchInput = document.getElementById("searchInput") as HTMLInputElement;
 const searchResultsEl = document.getElementById("searchResults")!;
 const suggestionsEl = document.getElementById("suggestions")!;
 
 // --- Helpers ---
+
+/**
+ * Render `text` into `target`, wrapping characters at `indices` in <mark> tags
+ * for fuzzy-match highlighting. Uses textContent / DOM nodes so input is never
+ * interpreted as HTML.
+ */
+function renderHighlighted(
+  target: HTMLElement,
+  text: string,
+  indices: number[]
+): void {
+  target.textContent = "";
+  if (!text) return;
+  if (!indices || indices.length === 0) {
+    target.textContent = text;
+    return;
+  }
+  const set = new Set(indices);
+  let i = 0;
+  while (i < text.length) {
+    const isMatch = set.has(i);
+    let j = i;
+    while (j < text.length && set.has(j) === isMatch) j++;
+    const slice = text.slice(i, j);
+    if (isMatch) {
+      const mark = document.createElement("mark");
+      mark.className = "match";
+      mark.textContent = slice;
+      target.appendChild(mark);
+    } else {
+      target.appendChild(document.createTextNode(slice));
+    }
+    i = j;
+  }
+}
 
 function showStatus(message: string, type: "success" | "info" = "success"): void {
   statusMessageEl.textContent = message;
@@ -60,10 +96,45 @@ async function refreshStats(): Promise<void> {
 
 // --- Tab Search ---
 
+const TAB_MARKER = "👉 ";
+const MARK_TIMEOUT_MS = 5000;
+
+let markedTabId: number | null = null;
+let markTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function clearMark(): void {
+  if (markTimeout) {
+    clearTimeout(markTimeout);
+    markTimeout = null;
+  }
+  if (markedTabId !== null) {
+    const id = markedTabId;
+    markedTabId = null;
+    sendMessage({ type: "UNMARK_TAB", tabId: id }).catch(() => {});
+  }
+}
+
+function markTab(tabId: number): void {
+  if (markedTabId === tabId) return;
+  // Unmark whatever was marked before
+  if (markedTabId !== null && markedTabId !== tabId) {
+    const prev = markedTabId;
+    sendMessage({ type: "UNMARK_TAB", tabId: prev }).catch(() => {});
+  }
+  if (markTimeout) clearTimeout(markTimeout);
+  markedTabId = tabId;
+  sendMessage({ type: "MARK_TAB", tabId, marker: TAB_MARKER }).catch(() => {});
+  markTimeout = setTimeout(() => {
+    if (markedTabId === tabId) clearMark();
+  }, MARK_TIMEOUT_MS);
+}
+
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 searchInput.addEventListener("input", () => {
   if (searchDebounce) clearTimeout(searchDebounce);
+  // New query — drop any active marker so titles don't get stuck modified
+  clearMark();
   searchDebounce = setTimeout(async () => {
     const query = searchInput.value.trim();
     if (!query) {
@@ -104,10 +175,24 @@ searchInput.addEventListener("input", () => {
       for (const result of tabResults) {
         const item = document.createElement("div");
         item.className = "search-result-item";
+        if (result.active) {
+          item.classList.add("is-active-tab");
+        }
 
         const title = document.createElement("span");
         title.className = "search-result-title";
-        title.textContent = result.title || result.url;
+        if (result.title) {
+          renderHighlighted(title, result.title, result.titleMatchIndices);
+        } else {
+          renderHighlighted(title, result.url, result.urlMatchIndices);
+        }
+
+        if (result.active) {
+          const badge = document.createElement("span");
+          badge.className = "active-badge";
+          badge.textContent = "● Active";
+          title.appendChild(badge);
+        }
 
         const domain = document.createElement("span");
         domain.className = "search-result-domain";
@@ -115,7 +200,12 @@ searchInput.addEventListener("input", () => {
 
         item.appendChild(title);
         item.appendChild(domain);
+        item.addEventListener("mouseenter", () => markTab(result.id));
+        item.addEventListener("mouseleave", () => {
+          if (markedTabId === result.id) clearMark();
+        });
         item.addEventListener("click", async () => {
+          clearMark();
           await sendMessage({
             type: "SWITCH_TO_TAB",
             tabId: result.id,
@@ -142,7 +232,11 @@ searchInput.addEventListener("input", () => {
 
         const title = document.createElement("span");
         title.className = "search-result-title";
-        title.textContent = bm.title || bm.url;
+        if (bm.title) {
+          renderHighlighted(title, bm.title, bm.titleMatchIndices);
+        } else {
+          renderHighlighted(title, bm.url, bm.urlMatchIndices);
+        }
 
         const path = document.createElement("span");
         path.className = "bookmark-path";
@@ -271,3 +365,34 @@ btnOrganize.addEventListener("click", async () => {
 // --- Init ---
 refreshStats();
 refreshSuggestions();
+
+// "Find my current tab" — mark the active tab's title with 👉 so the user can
+// spot it in a long horizontal/vertical tab strip. Auto-clears after 5s.
+btnFindCurrent.addEventListener("click", async () => {
+  try {
+    // Delegate to the service worker. Activating a non-active tab from the
+    // popup closes the popup and kills any further JS here, so the pivot
+    // dance MUST run in the background script.
+    const response = (await sendMessage({
+      type: "REVEAL_ACTIVE_TAB",
+      marker: TAB_MARKER,
+    })) as { type: string; data: { success: boolean; tabId?: number } };
+    if (response.data.success) {
+      showStatus(`✓ Marked active tab — look for ${TAB_MARKER}in your tab strip`);
+    } else {
+      showStatus("Couldn't find active tab", "info");
+    }
+  } catch (err) {
+    console.error(err);
+    showStatus("Couldn't mark current tab", "info");
+  }
+});
+
+// Defensive: when the popup closes (user clicks away), make sure no tab is
+// left with a marker prefix. The popup window emits 'unload' on close.
+window.addEventListener("unload", () => {
+  if (markedTabId !== null) {
+    // Use sendMessage without awaiting — popup is going away
+    chrome.runtime.sendMessage({ type: "UNMARK_TAB", tabId: markedTabId });
+  }
+});

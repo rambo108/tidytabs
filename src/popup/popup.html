@@ -11,7 +11,7 @@
     <h1>🗂️ TidyTabs</h1>
 
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="🔍 Search open tabs..." autocomplete="off" />
+      <input type="text" id="searchInput" placeholder="🔍 Search open tabs & bookmarks..." autocomplete="off" autofocus />
     </div>
     <div id="searchResults" class="search-results hidden"></div>
 
@@ -35,6 +35,9 @@
     </div>
 
     <div class="actions">
+      <button id="btnFindCurrent" class="btn btn-secondary">
+        📍 Find my current tab
+      </button>
       <button id="btnCloseDuplicates" class="btn btn-secondary">
         ✕ Close Duplicates
       </button>
